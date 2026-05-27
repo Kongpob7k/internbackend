@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RepairRequestApi.Data;
@@ -21,6 +22,22 @@ public class AuthController : ControllerBase
     {
         _context = context;
         _config = config;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var users = await _context.Users
+            .Select(x => new
+            {
+                x.Id,
+                x.FullName,
+                x.Email,
+                x.Role
+            })
+            .ToListAsync();
+
+        return Ok(users);
     }
 
     [HttpPost("register")]
@@ -91,5 +108,35 @@ public class AuthController : ControllerBase
         {
             token = new JwtSecurityTokenHandler().WriteToken(token)
         });
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+        {
+            return Unauthorized("Invalid token claims.");
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .Select(u => new 
+            {
+                u.Id,
+                u.FullName,
+                u.Email,
+                u.Role
+            })
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            return NotFound("User not found.");
+        }
+
+        return Ok(user);
     }
 }

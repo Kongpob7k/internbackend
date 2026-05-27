@@ -40,7 +40,6 @@ public class RepairTicketsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var tickets = await _context.RepairTickets
-            .Include(x => x.User)
             .ToListAsync();
 
         return Ok(tickets);
